@@ -9,7 +9,7 @@ from datetime import datetime
 # Page configuration
 st.set_page_config(
     page_title="Silkworm Disease Detection",
-    page_icon="🐛",
+    page_icon="🛸",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -180,7 +180,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # MODEL PATH - Update this with your model location
-MODEL_PATH = r"philip_best.pt"  # Change this to your model path, e.g., "models/silkworm_yolo.pt"
+MODEL_PATH = "philip_best.pt"
 
 # Initialize session state
 if 'model' not in st.session_state:
@@ -205,7 +205,7 @@ def load_model(model_path):
         return None, False
 
 # Title and description
-st.markdown("<h1>🐛 Silkworm Disease Detection Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🛸 Silkworm Disease Detection Dashboard</h1>", unsafe_allow_html=True)
 st.markdown("""
     <div class='subtitle'>
         Advanced AI-Powered Detection System | YOLOv11 Neural Network
@@ -338,7 +338,7 @@ else:
             st.markdown("### 📤 Upload Images for Analysis")
             st.markdown("<p style='color: #94a3b8; font-size: 0.9em;'>Supported formats: JPG, JPEG, PNG | Multiple files allowed</p>", unsafe_allow_html=True)
             
-            uploaded_files = st.file_uploader("", type=['jpg', 'jpeg', 'png'], 
+            uploaded_files = st.file_uploader("Choose images", type=['jpg', 'jpeg', 'png'], 
                                              label_visibility="collapsed", 
                                              accept_multiple_files=True)
             
@@ -350,7 +350,7 @@ else:
                 for idx, uploaded_file in enumerate(uploaded_files):
                     with cols[idx % 4]:
                         image = Image.open(uploaded_file)
-                        st.image(image, use_container_width=True, caption=f"Image {idx+1}")
+                        st.image(image, use_column_width=True, caption=f"Image {idx+1}")
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
@@ -405,7 +405,7 @@ else:
             st.markdown("### 📸 Webcam Capture")
             st.markdown("<p style='color: #94a3b8; font-size: 0.9em;'>Click the camera button to capture an image</p>", unsafe_allow_html=True)
             
-            camera_input = st.camera_input("", label_visibility="collapsed")
+            camera_input = st.camera_input("Take a picture", label_visibility="collapsed")
             
             if camera_input is not None:
                 image = Image.open(camera_input)
@@ -437,7 +437,7 @@ else:
                 st.markdown(f"### 🎯 Detection Results - Image {selected_idx + 1}")
                 st.markdown(f"<p style='color: #94a3b8; font-size: 0.9em;'>📄 {result_data['filename']}</p>", unsafe_allow_html=True)
                 
-                st.image(result_data['annotated'], caption="🔍 AI Analysis Results", use_container_width=True)
+                st.image(result_data['annotated'], caption="🔍 AI Analysis Results", use_column_width=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
@@ -481,5 +481,4 @@ else:
                 </div>
             """, unsafe_allow_html=True)
         
-
-        st.markdown("</div>", unsafe_allow_html=True)   
+        st.markdown("</div>", unsafe_allow_html=True)
