@@ -194,8 +194,6 @@ if 'all_results' not in st.session_state:
     st.session_state.all_results = []
 if 'selected_image_idx' not in st.session_state:
     st.session_state.selected_image_idx = 0
-if 'processing' not in st.session_state:
-    st.session_state.processing = False
 
 # Load model on startup
 @st.cache_resource
@@ -206,6 +204,42 @@ def load_model(model_path):
     except Exception as e:
         st.error(f"Error loading model: {str(e)}")
         return None, False
+
+def process_images(uploaded_files, model, confidence):
+    """Process uploaded images and return results"""
+    results = []
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for idx, uploaded_file in enumerate(uploaded_files):
+        status_text.text(f"🤖 Analyzing image {idx+1}/{len(uploaded_files)}...")
+        
+        # Reset file pointer
+        uploaded_file.seek(0)
+        image = Image.open(uploaded_file)
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Run inference
+        inference_results = model(image, conf=confidence, verbose=False)
+        annotated = inference_results[0].plot()
+        annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+        
+        results.append({
+            'original': image,
+            'annotated': Image.fromarray(annotated_rgb),
+            'result': inference_results[0],
+            'filename': uploaded_file.name
+        })
+        
+        progress_bar.progress((idx + 1) / len(uploaded_files))
+    
+    status_text.success("✅ All images processed!")
+    progress_bar.empty()
+    
+    return results
 
 # Title and description
 st.markdown("<h1>🛸 Silkworm Disease Detection Dashboard</h1>", unsafe_allow_html=True)
@@ -343,7 +377,8 @@ else:
             
             uploaded_files = st.file_uploader("Choose images", type=['jpg', 'jpeg', 'png'], 
                                              label_visibility="collapsed", 
-                                             accept_multiple_files=True)
+                                             accept_multiple_files=True,
+                                             key="file_uploader")
             
             if uploaded_files:
                 st.markdown(f"<p style='color: #6366f1; font-weight: bold;'>📁 {len(uploaded_files)} image(s) uploaded</p>", unsafe_allow_html=True)
@@ -359,39 +394,13 @@ else:
                 
                 if st.button("🔍 Start Batch AI Detection", key="detect_btn"):
                     try:
-                        st.session_state.all_results = []
-                        progress_bar = st.progress(0)
-                        status_text = st.empty()
-                        
-                        for idx, uploaded_file in enumerate(uploaded_files):
-                            status_text.text(f"🤖 Analyzing image {idx+1}/{len(uploaded_files)}...")
-                            
-                            # Reset file pointer
-                            uploaded_file.seek(0)
-                            image = Image.open(uploaded_file)
-                            
-                            # Convert to RGB if necessary
-                            if image.mode != 'RGB':
-                                image = image.convert('RGB')
-                            
-                            # Run inference
-                            results = st.session_state.model(image, conf=confidence, verbose=False)
-                            annotated = results[0].plot()
-                            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                            
-                            st.session_state.all_results.append({
-                                'original': image,
-                                'annotated': Image.fromarray(annotated_rgb),
-                                'result': results[0],
-                                'filename': uploaded_file.name
-                            })
-                            
-                            progress_bar.progress((idx + 1) / len(uploaded_files))
-                        
-                        status_text.text("✅ All images processed!")
+                        # Process images and store in session state
+                        st.session_state.all_results = process_images(
+                            uploaded_files, 
+                            st.session_state.model, 
+                            confidence
+                        )
                         st.session_state.selected_image_idx = 0
-                        st.success("Detection complete! Check results on the right →")
-                        st.rerun()
                         
                     except Exception as e:
                         st.error(f"❌ Error during detection: {str(e)}")
@@ -407,8 +416,9 @@ else:
                         with result_cols[idx % 4]:
                             if st.button(f"Image {idx+1}", key=f"img_btn_{idx}"):
                                 st.session_state.selected_image_idx = idx
-                                st.rerun()
             else:
+                # Clear results when no files are uploaded
+                st.session_state.all_results = []
                 st.markdown("""
                     <div style='text-align: center; padding: 60px 20px; color: #64748b;'>
                         <div style='font-size: 4em; margin-bottom: 20px;'>📁</div>
@@ -443,7 +453,6 @@ else:
                             'filename': 'webcam_capture.jpg'
                         }]
                         st.session_state.selected_image_idx = 0
-                        st.rerun()
                         
                 except Exception as e:
                     st.error(f"❌ Error during detection: {str(e)}")
