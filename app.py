@@ -194,6 +194,8 @@ if 'all_results' not in st.session_state:
     st.session_state.all_results = []
 if 'selected_image_idx' not in st.session_state:
     st.session_state.selected_image_idx = 0
+if 'processing' not in st.session_state:
+    st.session_state.processing = False
 
 # Load model on startup
 @st.cache_resource
@@ -202,6 +204,7 @@ def load_model(model_path):
         model = YOLO(model_path)
         return model, True
     except Exception as e:
+        st.error(f"Error loading model: {str(e)}")
         return None, False
 
 # Title and description
@@ -354,32 +357,45 @@ else:
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 
-                if st.button("🔍 Start Batch AI Detection", use_container_width=True, type="primary"):
-                    st.session_state.all_results = []
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    for idx, uploaded_file in enumerate(uploaded_files):
-                        status_text.text(f"🤖 Analyzing image {idx+1}/{len(uploaded_files)}...")
-                        image = Image.open(uploaded_file)
+                if st.button("🔍 Start Batch AI Detection", key="detect_btn"):
+                    try:
+                        st.session_state.all_results = []
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
                         
-                        # Run inference
-                        results = st.session_state.model(image, conf=confidence)
-                        annotated = results[0].plot()
-                        annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+                        for idx, uploaded_file in enumerate(uploaded_files):
+                            status_text.text(f"🤖 Analyzing image {idx+1}/{len(uploaded_files)}...")
+                            
+                            # Reset file pointer
+                            uploaded_file.seek(0)
+                            image = Image.open(uploaded_file)
+                            
+                            # Convert to RGB if necessary
+                            if image.mode != 'RGB':
+                                image = image.convert('RGB')
+                            
+                            # Run inference
+                            results = st.session_state.model(image, conf=confidence, verbose=False)
+                            annotated = results[0].plot()
+                            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+                            
+                            st.session_state.all_results.append({
+                                'original': image,
+                                'annotated': Image.fromarray(annotated_rgb),
+                                'result': results[0],
+                                'filename': uploaded_file.name
+                            })
+                            
+                            progress_bar.progress((idx + 1) / len(uploaded_files))
                         
-                        st.session_state.all_results.append({
-                            'original': image,
-                            'annotated': Image.fromarray(annotated_rgb),
-                            'result': results[0],
-                            'filename': uploaded_file.name
-                        })
+                        status_text.text("✅ All images processed!")
+                        st.session_state.selected_image_idx = 0
+                        st.success("Detection complete! Check results on the right →")
+                        st.rerun()
                         
-                        progress_bar.progress((idx + 1) / len(uploaded_files))
-                    
-                    status_text.text("✅ All images processed!")
-                    st.session_state.selected_image_idx = 0
-                    st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error during detection: {str(e)}")
+                        st.exception(e)
                 
                 # Show processed images if available
                 if len(st.session_state.all_results) > 0:
@@ -389,7 +405,7 @@ else:
                     result_cols = st.columns(min(4, len(st.session_state.all_results)))
                     for idx, result_data in enumerate(st.session_state.all_results):
                         with result_cols[idx % 4]:
-                            if st.button(f"Image {idx+1}", key=f"img_btn_{idx}", use_container_width=True):
+                            if st.button(f"Image {idx+1}", key=f"img_btn_{idx}"):
                                 st.session_state.selected_image_idx = idx
                                 st.rerun()
             else:
@@ -408,21 +424,30 @@ else:
             camera_input = st.camera_input("Take a picture", label_visibility="collapsed")
             
             if camera_input is not None:
-                image = Image.open(camera_input)
-                
-                with st.spinner("🤖 AI is analyzing the silkworms..."):
-                    results = st.session_state.model(image, conf=confidence)
-                    annotated = results[0].plot()
-                    annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+                try:
+                    image = Image.open(camera_input)
                     
-                    st.session_state.all_results = [{
-                        'original': image,
-                        'annotated': Image.fromarray(annotated_rgb),
-                        'result': results[0],
-                        'filename': 'webcam_capture.jpg'
-                    }]
-                    st.session_state.selected_image_idx = 0
-                    st.rerun()
+                    # Convert to RGB if necessary
+                    if image.mode != 'RGB':
+                        image = image.convert('RGB')
+                    
+                    with st.spinner("🤖 AI is analyzing the silkworms..."):
+                        results = st.session_state.model(image, conf=confidence, verbose=False)
+                        annotated = results[0].plot()
+                        annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+                        
+                        st.session_state.all_results = [{
+                            'original': image,
+                            'annotated': Image.fromarray(annotated_rgb),
+                            'result': results[0],
+                            'filename': 'webcam_capture.jpg'
+                        }]
+                        st.session_state.selected_image_idx = 0
+                        st.rerun()
+                        
+                except Exception as e:
+                    st.error(f"❌ Error during detection: {str(e)}")
+                    st.exception(e)
         
         st.markdown("</div>", unsafe_allow_html=True)
     
