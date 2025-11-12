@@ -180,7 +180,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # MODEL PATH - Update this with your model location
-MODEL_PATH = "philip_best.pt"
+MODEL_PATH = "best (1).pt"
 
 # Initialize session state
 if 'model' not in st.session_state:
@@ -516,3 +516,4 @@ else:
             """, unsafe_allow_html=True)
         
         st.markdown("</div>", unsafe_allow_html=True)
+
